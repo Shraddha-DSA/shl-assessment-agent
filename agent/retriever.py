@@ -1,13 +1,15 @@
 import pickle
+from pathlib import Path
 
 import faiss
+import numpy as np
 from sentence_transformers import SentenceTransformer
 
 
-INDEX_PATH = "catalog/faiss.index"
-DOCUMENTS_PATH = "catalog/documents.pkl"
+FAISS_INDEX_FILE = Path("catalog/faiss.index")
+DOCUMENTS_FILE = Path("catalog/documents.pkl")
 
-MODEL_NAME = "all-MiniLM-L6-v2"
+EMBEDDING_MODEL = "all-MiniLM-L6-v2"
 
 
 class SHLRetriever:
@@ -15,19 +17,21 @@ class SHLRetriever:
     def __init__(self):
 
         print("Loading embedding model...")
-        self.model = SentenceTransformer(MODEL_NAME)
+
+        self.model = SentenceTransformer(EMBEDDING_MODEL)
 
         print("Loading FAISS index...")
-        self.index = faiss.read_index(INDEX_PATH)
+
+        self.index = faiss.read_index(str(FAISS_INDEX_FILE))
 
         print("Loading documents...")
 
-        with open(DOCUMENTS_PATH, "rb") as f:
+        with open(DOCUMENTS_FILE, "rb") as f:
             self.documents = pickle.load(f)
 
         print(f"Loaded {len(self.documents)} assessments.")
 
-    def retrieve(self, query, top_k=5):
+    def retrieve(self, query: str, top_k: int = 10):
 
         query_embedding = self.model.encode(
             query,
@@ -35,9 +39,15 @@ class SHLRetriever:
             normalize_embeddings=True
         )
 
-        query_embedding = query_embedding.reshape(1, -1)
+        query_embedding = np.asarray(
+            query_embedding,
+            dtype="float32"
+        ).reshape(1, -1)
 
-        scores, indices = self.index.search(query_embedding, top_k)
+        scores, indices = self.index.search(
+            query_embedding,
+            top_k
+        )
 
         results = []
 
@@ -46,11 +56,10 @@ class SHLRetriever:
             if idx == -1:
                 continue
 
-            assessment = self.documents[idx].copy()
+            doc = self.documents[idx].copy()
+            doc["score"] = float(score)
 
-            assessment["score"] = float(score)
-
-            results.append(assessment)
+            results.append(doc)
 
         return results
 
@@ -65,18 +74,12 @@ if __name__ == "__main__":
 
     print("\nTop Recommendations\n")
 
-    for i, result in enumerate(results, start=1):
+    for i, doc in enumerate(results, start=1):
 
         print("=" * 60)
-
-        print(f"{i}. {result['name']}")
-
-        print(f"Score : {result['score']:.4f}")
-
-        print(f"Duration : {result['duration']}")
-
-        print(f"Remote : {result['remote']}")
-
-        print(f"Adaptive : {result['adaptive']}")
-
-        print(f"URL : {result['url']}")
+        print(f"{i}. {doc['name']}")
+        print(f"Score      : {doc['score']:.4f}")
+        print(f"Duration   : {doc['duration']}")
+        print(f"Remote     : {doc['remote']}")
+        print(f"Adaptive   : {doc['adaptive']}")
+        print(f"URL        : {doc['url']}")
