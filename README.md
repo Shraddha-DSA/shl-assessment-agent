@@ -1,10 +1,3 @@
----
-title: SHL Assessment Agent
-colorFrom: blue
-colorTo: indigo
-sdk: docker
-pinned: false
----
 
 # SHL Assessment Recommendation Agent
 
