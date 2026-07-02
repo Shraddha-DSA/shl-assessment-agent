@@ -23,3 +23,6 @@ Thumbs.db
 
 # Jupyter
 .ipynb_checkpoints/
+
+catalog/faiss.index
+catalog/documents.pkl
